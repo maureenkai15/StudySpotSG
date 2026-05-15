@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Wifi, Zap, Clock, Users, MapPin, Star, Moon, ChevronRight, RefreshCw, Send, X, CheckCircle, AlertCircle, Loader2, Navigation, BookOpen, VolumeX, Volume2, Calendar, Bell, Timer, Share2, Heart, Coffee, Zap as ZapIcon, TrendingUp, Info } from "lucide-react";
 
-const API = "http://localhost:4000/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 const PERSONAS = [
   { id: "solo", emoji: "🎧", label: "Solo focus", desc: "Need silence & concentration", color: "#818cf8" },
