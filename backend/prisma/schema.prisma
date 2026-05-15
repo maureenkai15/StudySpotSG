@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model StudySpot {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  category        SpotCategory
+  address         String
+  postalCode      String
+  lat             Float
+  lng             Float
+  hasWifi         Boolean  @default(false)
+  wifiSpeed       WifiSpeed?
+  hasPowerSockets Boolean  @default(false)
+  powerSocketCount Int?
+  isAirCon        Boolean  @default(false)
+  noiseLevel      NoiseLevel @default(MODERATE)
+  is24Hours       Boolean  @default(false)
+  requiresBooking Boolean  @default(false)
+  bookingUrl      String?
+  isFree          Boolean  @default(true)
+  pricePerHour    Float?
+  totalSeats      Int?
+  groupStudy      Boolean  @default(false)
+  soloStudy       Boolean  @default(true)
+  privateRooms    Int      @default(0)
+  nearestMrt      String?
+  mrtWalkMins     Int?
+  isVerified      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  dataSource      String?
+  externalId      String?
+  imageUrls       String[] @default([])
+  tags            String[] @default([])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  openingHours     OpeningHours[]
+  occupancyLogs    OccupancyLog[]
+  predictions      OccupancyPrediction[]
+  reviews          Review[]
+  bookingSlots     BookingSlot[]
+  communityReports CommunityReport[]
+  nlbBranch        NlbBranch?
+
+  @@index([lat, lng])
+  @@index([category])
+  @@index([isActive])
+}
+
+model OpeningHours {
+  id         String    @id @default(cuid())
+  spotId     String
+  dayOfWeek  Int
+  openTime   String
+  closeTime  String
+  isClosed   Boolean   @default(false)
+  spot       StudySpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@unique([spotId, dayOfWeek])
+  @@index([spotId])
+}
+
+model NlbBranch {
+  id           String    @id @default(cuid())
+  spotId       String    @unique
+  nlbBranchId  String    @unique
+  branchCode   String    @unique
+  hasStudyArea Boolean   @default(true)
+  studySeats   Int?
+  spot         StudySpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  bookingSlots BookingSlot[]
+
+  @@index([nlbBranchId])
+}
+
+model BookingSlot {
+  id          String     @id @default(cuid())
+  spotId      String
+  nlbBranchId String?
+  date        DateTime   @db.Date
+  startTime   String
+  endTime     String
+  totalSlots  Int
+  bookedSlots Int        @default(0)
+  isAvailable Boolean    @default(true)
+  bookingUrl  String?
+  fetchedAt   DateTime   @default(now())
+  spot        StudySpot  @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  nlbBranch   NlbBranch? @relation(fields: [nlbBranchId], references: [id])
+
+  @@index([spotId, date])
+  @@index([date, isAvailable])
+}
+
+model OccupancyLog {
+  id               String     @id @default(cuid())
+  spotId           String
+  timestamp        DateTime   @default(now())
+  occupancyPct     Int
+  estimatedSeats   Int?
+  crowdLevel       CrowdLevel
+  source           DataSource
+  sourceConfidence Float      @default(1.0)
+  rawData          Json?
+  spot             StudySpot  @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, timestamp])
+  @@index([timestamp])
+}
+
+model OccupancyPrediction {
+  id                    String     @id @default(cuid())
+  spotId                String
+  predictedFor          DateTime
+  generatedAt           DateTime   @default(now())
+  predictedOccupancyPct Int
+  confidenceScore       Float
+  crowdLevel            CrowdLevel
+  seatProbability       Float
+  modelVersion          String
+  features              Json?
+  spot                  StudySpot  @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, predictedFor])
+  @@index([predictedFor])
+}
+
+model Review {
+  id           String    @id @default(cuid())
+  spotId       String
+  userId       String
+  rating       Int
+  quietness    Int?
+  wifiRating   Int?
+  cleanliness  Int?
+  comment      String?   @db.Text
+  isVerified   Boolean   @default(false)
+  helpfulCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  spot         StudySpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@index([spotId])
+  @@index([userId])
+}
+
+model CommunityReport {
+  id           String     @id @default(cuid())
+  spotId       String
+  userId       String
+  reportType   ReportType
+  occupancyPct Int?
+  comment      String?
+  imageUrl     String?
+  isApproved   Boolean    @default(false)
+  reliability  Float      @default(0.5)
+  createdAt    DateTime   @default(now())
+  spot         StudySpot  @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@index([spotId, createdAt])
+}
+
+model HourlyAggregate {
+  id           String   @id @default(cuid())
+  spotId       String
+  date         DateTime @db.Date
+  hour         Int
+  dayOfWeek    Int
+  avgOccupancy Float
+  maxOccupancy Int
+  minOccupancy Int
+  sampleCount  Int
+
+  @@unique([spotId, date, hour])
+  @@index([spotId, dayOfWeek, hour])
+}
+
+enum SpotCategory {
+  NLB_LIBRARY
+  UNIVERSITY_LIBRARY
+  COMMUNITY_CENTER
+  CAFE
+  COWORKING
+  MAKERSPACE
+  SHOPPING_MALL
+  HAWKER_CENTER
+  MCDONALDS_24H
+  OTHER
+}
+
+enum NoiseLevel {
+  SILENT
+  QUIET
+  MODERATE
+  LIVELY
+}
+
+enum WifiSpeed {
+  SLOW
+  MODERATE
+  FAST
+  VERY_FAST
+}
+
+enum CrowdLevel {
+  EMPTY
+  QUIET
+  MODERATE
+  BUSY
+  FULL
+}
+
+enum DataSource {
+  NLB_API
+  GOOGLE_POPULAR_TIMES
+  COMMUNITY_REPORT
+  MANUAL_CHECK
+  SCRAPER
+  SENSOR
+}
+
+enum ReportType {
+  CROWD_UPDATE
+  SPOT_CLOSED
+  SPOT_OPEN
+  INACCURATE_INFO
+  NEW_AMENITY
+  PHOTO_UPDATE
+}
